@@ -52,30 +52,79 @@ data_all <- data
 data <- data[,-ix]
 ### Test for differences between deceased and not
 test_list <- list()
-for (i in colnames(data)) {
-  if (is.numeric(data[[i]])){ test_list[[i]] <- wilcox.test(data[[i]] ~ data$`Deceased before discharge`)
-  } else if (is.factor(data[[i]])) { test_list[[i]] <- fisher.test(data[[i]], data$`Deceased before discharge`) }
-} 
-result <- bind_rows(lapply(test_list,glance),.id="Variable") 
-result$adj.p.value <- p.adjust(result$p.value,method = "fdr")
-result <- data.frame(result) ; rm(test_list)
-result <- result[ order(result$adj.p.value, decreasing = FALSE), ]
 
+for (i in colnames(data)) {
+  if (is.numeric(data[[i]])){ 
+    test <- wilcox.test(data[[i]] ~ data$`Deceased before discharge`)
+    test_list[[i]] <- data.frame( Variable = colnames(data)[i],
+                                  alternative = test$alternative ,
+                                  method = test$method,
+                                  p.value = test$p.value,
+                                  statistic = test$statistic,
+                                  mean_alive = mean( data[[i]][which(data$`Deceased before discharge` %in% "0")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "0")])]),
+                                  mean_dead =  mean( data[[i]][which(data$`Deceased before discharge` %in% "1")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "1")])]),
+                                  Difference = mean( data[[i]][which(data$`Deceased before discharge` %in% "0")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "0")])]) - mean( data[[i]][which(data$`Deceased before discharge` %in% "1")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "1")])]) )
+    
+
+  } else if (is.factor(data[[i]])) { 
+    
+    test <- fisher.test(data[[i]], data$`Deceased before discharge`) 
+    
+    test_list[[i]] <- data.frame( Variable = colnames(data)[i],
+                                  alternative = test$alternative ,
+                                  method = test$method,
+                                  p.value = test$p.value,
+                                  statistic = test$statistic,
+                                  mean_alive = mean( data[[i]][which(data$`Deceased before discharge` %in% "0")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "0")])]),
+                                  mean_dead =  mean( data[[i]][which(data$`Deceased before discharge` %in% "1")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "1")])]),
+                                  Difference = mean( data[[i]][which(data$`Deceased before discharge` %in% "0")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "0")])]) - mean( data[[i]][which(data$`Deceased before discharge` %in% "1")][!is.na(data[[i]][which(data$`Deceased before discharge` %in% "1")])]) )
+    
+    
+  }
+} 
+#result <- bind_rows(lapply(test_list,glance),.id="Variable") 
+#result$adj.p.value <- p.adjust(result$p.value,method = "fdr")
+#result <- data.frame(result) ; rm(test_list)
+result <- do.call(rbind,test_list)
+result$adj.p.value <- p.adjust(result$p.value,method = "fdr")
+result <- result[ order(result$adj.p.value, decreasing = FALSE), ]
 result$ranking <- 1:nrow(result)
 result$nLogFDR <- -log10(result$adj.p.value)
 
 library(ggrepel)
 
-pdf(file="univariate_tests.pdf",width = 16,height =  12)
-ggplot(data=result) + aes(x=ranking,y=nLogFDR) + geom_point() + theme_bw() + 
-  geom_text_repel(data=result[1:25,],aes(label=Variable),force = 2,max.iter = 500,nudge_x = seq(25,100,3.1), nudge_y=seq(28,4) ) +
-  labs(x="Ranking",y="-Log10(FDR)") +
-  theme(text = element_text(size=rel(4.8)),
-        legend.text=element_text(size=rel(4.8)),
-        plot.title=element_text(size=rel(4.8)) ) 
-dev.off()
+#pdf(file="univariate_tests.pdf",width = 16,height =  12)
+#ggplot(data=result) + aes(x=ranking,y=nLogFDR) + geom_point() + theme_bw() + 
+#  geom_text_repel(data=result[1:25,],aes(label=Variable),force = 2,max.iter = 500,nudge_x = seq(25,100,3.1), nudge_y=seq(28,4) ) +
+#  labs(x="Ranking",y="-Log10(FDR)") +
+#  theme(text = element_text(size=rel(4.8)),
+#        legend.text=element_text(size=rel(4.8)),
+#        plot.title=element_text(size=rel(4.8)) ) 
+#dev.off()
 
-write.csv(file="statistics_variables.csv",result)
+#pdf(file="univariate_tests.pdf",width = 16,height =  12)
+#ggplo t(data=result) + aes(x=ranking,y=nLogFDR) + geom_point() + theme_bw() + 
+#  geom_text_repel(data=result[1:25,],aes(label=Variable),force = 2,max.iter = 500,nudge_x = seq(25,100,3.1), nudge_y=seq(28,4) ) +
+#  labs(x="Ranking",y="-Log10(FDR)") +
+#  theme(text = element_text(size=rel(4.8)),
+#        legend.text=element_text(size=rel(4.8)),
+#        plot.title=element_text(size=rel(4.8)) ) 
+#dev.off()
+
+#result$diffv2 <- result$Difference
+#result$diffv2[result$diffv2 > 5] <- 5
+#result$diffv2[result$diffv2 < -5] <- -5
+
+#result$nLogFDR[result$nLogFDR > 5] <- 5
+
+#ggplot(data=result) + aes(x=diffv2,y=nLogFDR) + geom_point() + theme_bw() + 
+    #geom_text_repel(data=result[1:25,],aes(label=Variable),force = 2,max.iter = 500,nudge_x = seq(25,100,3.1), nudge_y=seq(28,4) ) +
+#    labs(x="Difference",y="-Log10(FDR)") +
+#    theme(text = element_text(size=rel(4.8)),
+#          legend.text=element_text(size=rel(4.8)),
+#          plot.title=element_text(size=rel(4.8)) ) 
+
+# write.csv(file="statistics_variables.csv",result)
 
 ### Edgar's code:
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -237,14 +286,15 @@ fisher_data_long$sig <- fisher_data_long$p.value < 0.05
 pdf(file="fisher_independence_test_matrix_numeric_variables.pdf",width = 17, height = 13)
 ggplot(data=fisher_data_long) + aes(x=a,y=b,size=nLog.p.val,color=nLog.p.val,shape=sig) + theme_classic2() +
   scale_colour_viridis_c()+
-  geom_point(shape=16, colour = "black", aes(size = 1*max(nLog.p.val))) +
-  geom_point(shape=16, colour = "white", aes(size = 0.8*max(nLog.p.val))) +
+  #geom_point(shape=16, colour = "black", aes(size = 1*max(nLog.p.val))) +
+  #geom_point(shape=16, colour = "white", aes(size = 0.8*max(nLog.p.val))) +
   geom_point(data=fisher_data_long[which(fisher_data_long$sig %in% "TRUE"),],aes(x=a, y=b, size=0.81*nLog.p.val, color=nLog.p.val),shape=16) + 
   geom_point(data=fisher_data_long[which(fisher_data_long$sig %in% "FALSE"),],aes(x=a, y=b, size=0.81*nLog.p.val, color=nLog.p.val),shape=4) +
   theme(axis.text.x = element_text(angle = 45,hjust = 1)) +
   labs(x="", y="", title = "") +
   theme(text = element_text(size=rel(4.8)), legend.text=element_text(size=rel(4.8)), plot.title=element_text(size=rel(4.8)) )
 dev.off()
+
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ### results numeric
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -576,7 +626,6 @@ ix <- which(!is.na(truth_severity_adjusted))
 truth_severity_adjusted <- truth_severity_adjusted[ix]
 data_numeric_SEV <- data_numeric_SEV[ix,]
 
-
 ### make empty dataframe to store results
 results_severity_cv <- data.frame()
 ### make empty lists to store results
@@ -642,10 +691,6 @@ rm(my_rocs,my_coeficients,score_data,my_model.fit,xxi,xxy,xyz,r2,iii,ixx,count,n
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
 # load("covid19_glmnet_models_diane.RData")
-#
-# There was a big problem with how the calculations per model were done for ROCR package. The function accepts a list of numbers but
-# the input was actually factors, producing wrong results. Beucase of this and because pROC also has a function to calculate CI I re-calculate 
-# all the AUC values and CI intervals for further testing.
 #
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1044,9 +1089,10 @@ data_all$GGO.aerated.lung <- data$`GGO/Aerated lung`
 
 data_all$o2.saturation <- data_all$`O2 saturation`
 data_all$who.score <- data_all$`Maximun severity degree (WHO scale)`
+data_all$ETHNICITY_FACTOR <- data_all$`Ethnicity factor`
 
 ### variables to test
-covariates <- c("IL6_group","IL8_group","TNF_ALPHA_group","Age","Sex_factor","BMI","CT_qualitative","GGO.aerated.lung","o2.saturation","who.score")
+covariates <- c("IL6_group","IL8_group","TNF_ALPHA_group","Age","Sex_factor","ETHNICITY_FACTOR","BMI","CT_qualitative","GGO.aerated.lung","o2.saturation","who.score")
 ### formulas
 univ_formulas <- sapply(covariates, function(x) as.formula(paste('Surv(time_to_last_follow_up, Deceased_before_discharge)~', x)))
 ### models
@@ -1069,6 +1115,8 @@ univ_results <- lapply(univ_models,
                          return(res)
                          #return(exp(cbind(coef(x),confint(x))))
                        })
+###
+univ_results$ETHNICITY_FACTOR <- univ_results$ETHNICITY_FACTOR[-5] ## some bug with this variable
 ### join & dataframe
 res <- t(as.data.frame(univ_results, check.names = FALSE))
 as.data.frame(res)
@@ -1081,7 +1129,7 @@ write.csv(file="univariate.coxph.models.csv",univariate_results_hr)
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ### "IL6_group","IL8_group","TNF_ALPHA_group","Age","Sex_factor","BMI","CT_qualitative","GGO.aerated.lung"
-res.cox <- coxph(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ IL6_group + IL8_group + TNF_ALPHA_group + Age + Sex_factor + BMI + CT_qualitative + GGO.aerated.lung + o2.saturation + who.score , data = data_all)
+res.cox <- coxph(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ IL6_group + ETHNICITY_FACTOR + IL8_group + TNF_ALPHA_group + Age + Sex_factor + BMI + CT_qualitative + GGO.aerated.lung + o2.saturation + who.score , data = data_all)
 summary(res.cox)
 
 library(tab)
@@ -1192,6 +1240,99 @@ ggsurvplot( res.cox,
             #legend.labs =  c("0", "1"), 
             risk.table.height = 0.25, 
             ggtheme = theme_bw(), data = data ) + labs(title = "Age")
+dev.off()
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+data_all$O2_SAT<- data_all$`O2 saturation` 
+### quantiles
+data_all$o2_quantiles <- as.character(.bincode(data_all$O2_SAT, breaks=quantile(data_all$O2_SAT, probs=seq(0,1, by=0.25), na.rm=TRUE), include.lowest=TRUE))
+### model
+res.cox <- survfit(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ o2_quantiles, data = data_all)
+### custom plot
+pdf(file="coxph_fit_o2.pdf",width = 8,height =  7)
+ggsurvplot( res.cox, 
+            size = 1, 
+            conf.int = TRUE, pval = TRUE,
+            risk.table = TRUE, 
+            risk.table.col = "strata",
+            #legend.labs =  c("0", "1"), 
+            risk.table.height = 0.25, 
+            ggtheme = theme_bw(), data = data_all ) + labs(title = "O2 Saturation")
+dev.off()
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+data_all$O2_SAT<- data_all$`O2 saturation` 
+### quantiles
+data_all$o2_quantiles <- as.character(.bincode(data_all$O2_SAT, breaks=quantile(data_all$O2_SAT, probs=seq(0,1, by=0.25), na.rm=TRUE), include.lowest=TRUE))
+### model
+res.cox <- survfit(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ o2_quantiles, data = data_all)
+### custom plot
+pdf(file="coxph_fit_o2.pdf",width = 8,height =  7)
+ggsurvplot( res.cox, 
+            size = 1, 
+            conf.int = TRUE, pval = TRUE,
+            risk.table = TRUE, 
+            risk.table.col = "strata",
+            #legend.labs =  c("0", "1"), 
+            risk.table.height = 0.25, 
+            ggtheme = theme_bw(), data = data_all ) + labs(title = "O2 Saturation")
+dev.off()
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+data_all$Gender <- data_all$`Sex factor`
+### model
+res.cox <- survfit(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ Gender, data = data_all)
+### custom plot
+pdf(file="coxph_fit_gender.pdf",width = 8,height =  7)
+ggsurvplot( res.cox, 
+            size = 1, 
+            conf.int = TRUE, pval = TRUE,
+            risk.table = TRUE, 
+            risk.table.col = "strata",
+            #legend.labs =  c("0", "1"), 
+            risk.table.height = 0.25, 
+            ggtheme = theme_bw(), data = data_all ) + labs(title = "Gender")
+dev.off()
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+data_all$BMI <- data_all$BMI
+### quantiles
+data_all$BMI_quantiles <- as.character(.bincode(data_all$BMI, breaks=quantile(data_all$BMI, probs=seq(0,1, by=0.25), na.rm=TRUE), include.lowest=TRUE))
+### model
+res.cox <- survfit(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ BMI_quantiles, data = data_all)
+### custom plot
+pdf(file="coxph_fit_BMI.pdf",width = 8,height =  7)
+ggsurvplot( res.cox, 
+            size = 1, 
+            conf.int = TRUE, pval = TRUE,
+            risk.table = TRUE, 
+            risk.table.col = "strata",
+            #legend.labs =  c("0", "1"), 
+            risk.table.height = 0.25, 
+            ggtheme = theme_bw(), data = data_all ) + labs(title = "BMI")
+dev.off()
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+data_all$GGO_Ae_lung_ratio <- data_all$`GGO/Aerated lung`
+### quantiles
+data_all$GGO_Lung_Ratio_quantiles <- as.character(.bincode(data_all$GGO_Ae_lung_ratio, breaks=quantile(data_all$GGO_Ae_lung_ratio, probs=seq(0,1, by=0.25), na.rm=TRUE), include.lowest=TRUE))
+### model
+res.cox <- survfit(Surv(time_to_last_follow_up, Deceased_before_discharge) ~ GGO_Lung_Ratio_quantiles, data = data_all)
+### custom plot
+pdf(file="coxph_fit_GGO_Ae_ratio.pdf",width = 8,height =  7)
+ggsurvplot( res.cox, 
+            size = 1, 
+            conf.int = TRUE, pval = TRUE,
+            risk.table = TRUE, 
+            risk.table.col = "strata",
+            #legend.labs =  c("0", "1"), 
+            risk.table.height = 0.25, 
+            ggtheme = theme_bw(), data = data_all ) + labs(title = "BMI")
 dev.off()
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1339,6 +1480,80 @@ ggplot(results_for_roc[,]) + aes(x=FPR,y=TPR) +
   theme_classic2() 
 dev.off()
   
+
+
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+tmp_survival <- adjusted_results_severity_cv
+tmp_survival$auc <- round(tmp_survival$auc,2)
+
+ix <- which(!tmp_survival$auc<0.5)
+tmp_survival <- tmp_survival[ix,]
+
+
+my_scene <- levels(as.factor(tmp_survival$scenario))
+results_for_roc <- list()
+count=1
+
+for ( iii in 1:length(my_scene)) {
+  
+  vmy_value <- round(mean(tmp_survival$auc[which(tmp_survival$scenario %in% my_scene[iii] )]),2)
+  ix <- which(tmp_survival$scenario %in% my_scene[iii] & tmp_survival$auc == vmy_value)
+  ix <- tmp_survival$i[ix]
+  
+  for (xii in ix) {
+    results_for_roc[[count]] <- data.frame( FPR = unlist(my_rocs_severity[[xii]]@x.values) ,
+                                            TPR = unlist(my_rocs_severity[[xii]]@y.values) ,
+                                            model = xii ,
+                                            scenario =  my_scene[iii] )
+    count=count+1
+  } }
+
+results_for_roc <- do.call(rbind,results_for_roc)
+
+table(results_for_roc$scenario)
+
+head(results_for_roc)
+
+gg_color_hue <- function(n) { hues = seq(15, 375, length = n + 1) ; hcl(h = hues, l = 65, c = 100)[1:n] }
+
+gg_color_hue(5)[1]
+
+ix1 <- which(results_for_roc$scenario %in% my_scene[1]) 
+ix2 <- which(results_for_roc$scenario %in% my_scene[2])
+ix3 <- which(results_for_roc$scenario %in% my_scene[3])
+ix4 <- which(results_for_roc$scenario %in% my_scene[4])
+ix5 <- which(results_for_roc$scenario %in% my_scene[5])
+
+
+pdf(file="average_ROC_curves_w_error_severity_bars_labeled.pdf",width = 8,height = 6)
+ggplot(results_for_roc[,]) + aes(x=FPR,y=TPR) + 
+  
+  geom_line(data=results_for_roc[ix1,] ,color=gg_color_hue(5)[1],alpha=0.07) + 
+  stat_smooth(data=results_for_roc[ix1,], method = 'loess', color = gg_color_hue(5)[1],fullrange = TRUE,alpha=0) +
+  
+  geom_line(data=results_for_roc[ix2,] ,color=gg_color_hue(5)[2],alpha=0.07) + 
+  stat_smooth(data=results_for_roc[ix2,], method = 'loess', color = gg_color_hue(5)[2],fullrange = TRUE,alpha=0) +
+  
+  geom_line(data=results_for_roc[ix3,] ,color=gg_color_hue(5)[3],alpha=0.07) + 
+  stat_smooth(data=results_for_roc[ix3,], method = 'loess', color = gg_color_hue(5)[3],fullrange = TRUE,alpha=0) +
+  
+  geom_line(data=results_for_roc[ix4,] ,color=gg_color_hue(5)[4],alpha=0.07) + 
+  stat_smooth(data=results_for_roc[ix4,], method = 'loess', color = gg_color_hue(5)[4],fullrange = TRUE,alpha=0) +
+  
+  geom_line(data=results_for_roc[ix5,] ,color=gg_color_hue(5)[5],alpha=0.07) + 
+  stat_smooth(data=results_for_roc[ix5,], method = 'loess', color = gg_color_hue(5)[5],fullrange = TRUE,alpha=0) +
+  
+  geom_label( label="Cytokines",  x=0.75, y=0.1, label.padding = unit(0.45, "lines"), label.size = 0.30, color = "black", fill="#F8766D") +
+  geom_label( label="CT-Qualitative",  x=0.75, y=0.2, label.padding = unit(0.45, "lines"), label.size = 0.30, color = "black", fill="#A3A500") +
+  geom_label( label="CT-Quantitative",  x=0.75, y=0.3, label.padding = unit(0.45, "lines"), label.size = 0.30, color = "black", fill="#00BF7D") +
+  geom_label( label="Combined",  x=0.75, y=0.4, label.padding = unit(0.45, "lines"), label.size = 0.30, color = "black", fill="#00B0F6") +
+  geom_label( label="Optimized",  x=0.75, y=0.5, label.padding = unit(0.45, "lines"), label.size = 0.30, color = "black", fill="#E76BF3") +
+  
+  theme_classic2() 
+dev.off()
+
 #annotate(geom="text", x=0.75, y=0.1, label="Cytokines", color="#F8766D",fill="#F8766D",size=4) +
 #annotate(geom="text", x=0.75, y=0.2, label="CT-Qualitative", colour="#F8766D",size=4) +
 #annotate(geom="text", x=0.75, y=0.3, label="CT-Quantitative", colour=gg_color_hue(5)[1],size=4) +
@@ -1356,12 +1571,12 @@ my_comparisons <- list(  c('Cytokine',"CT-Qualitative"), c('Cytokine',"CT-Quanti
                          c('CT-Qualitative',"CT-Quantitative"), c('CT-Qualitative',"Combined"), c('CT-Qualitative',"Optimized"), c('CT-Quantitative',"Combined"),
                          c('CT-Quantitative',"Optimized"), c('Combined',"Optimized") )
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-pdf(file="auc_prediction_cv_results_survival_w_wilcox_MAIN.pdf",width = 16, height = 5)
+pdf(file="auc_prediction_cv_results_survival_w_wilcox_MAIN.pdf",width = 8, height = 5)
 ixx <- which(!adjusted_results_survival_cv$auc <= 0.5)
 ggboxplot(data=adjusted_results_survival_cv[ixx,], x="scenario",y="auc",fill="scenario") + 
   geom_boxplot(color="black",aes(fill=scenario)) +
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", paired=FALSE, label="p.signif", hide.ns = FALSE) +
-  theme_linedraw() +
+  theme_classic() +
   #rotate_x_text(angle=45) + 
   coord_flip() +
   labs(x ='', y='AUC', title='Survival Status', fill="Scenario") + theme(text = element_text(size=rel(4.8)),
@@ -1370,12 +1585,12 @@ ggboxplot(data=adjusted_results_survival_cv[ixx,], x="scenario",y="auc",fill="sc
 dev.off()
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-pdf(file="auc_prediction_cv_results_severity_w_wilcox_MAIN.pdf",width = 16, height = 5)
+pdf(file="auc_prediction_cv_results_severity_w_wilcox_MAIN.pdf",width = 8, height = 5)
 ixx <- which(!adjusted_results_severity_cv$auc <= 0.5)
 ggboxplot(data=adjusted_results_severity_cv[ixx,], x="scenario",y="auc",fill="scenario") + 
   geom_boxplot(color="black",aes(fill=scenario)) +
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", paired=FALSE, label="p.signif", hide.ns = FALSE) +
-  theme_linedraw() +
+  theme_classic() +
   #rotate_x_text(angle=45) + 
   coord_flip() +
   labs(x ='', y='AUC', title='Severity Status', fill="Scenario") + theme(text = element_text(size=rel(4.8)),
@@ -1423,14 +1638,108 @@ ggplot(pca_mts, aes(PC1, PC2,color=as.character(RIP) )) +
 , ncol=1,nrow=2
 )
 
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+dim(data_numeric)
+dim(data_all)
+data_numeric$o2sat <- data_all$`O2 saturation`
+data_numeric$o2sat[is.na(data_numeric$o2sat)] <- 0
+data_numeric$BMI <- data_all$BMI
+data_numeric$BMI[is.na(data_numeric$BMI)] <- 0
+data_numeric$gender <- data_all$Sex
+data_numeric$ethnic <- data_all$Ethnicity
+
+#my_scenarios
+my_scenariosV2 <- list(
+  O2sat = c("o2sat","Age"),
+  demographics = c("BMI","Age","gender","ethnic")
+)
+
+### make empty dataframe to store results
+results_survival_cv <- data.frame()
+### make empty lists to store results
+my_model.fit <- list()
+my_coeficients <- list()
+#my_ggplots <- list()
+my_rocs <- list()
+score_data <- list()
+#co_list <- list()
+subset_prob <- c(0.1,0.2,0.3,0.4,0.5)
+###
+
+### FOR loop to perform analysis and cross-fold validation
+for ( repeats in 1:1 ) { #1:100
+  #repeats=1
+  ### test different subsets of variable sizes, 
+  for ( r2 in 1:length(subset_prob) ) {
+    ### partitions the data into testing and training
+    #r2=1
+    ix <- createDataPartition(truth_survival, p=subset_prob[r2])
+    ix <- as.numeric(ix$Resample1)
+    truth_survival_train <- truth_survival[-ix]
+    truth_survival_test <- truth_survival[ix]
+    truth_survival_test
+    ### BUG: Sometimes produces only 1 class for test. Needs to be binary. Thus
+    if ( length(levels(as.factor(truth_survival_test))) > 1 ) {
+      ###
+      for ( xyz in 1:length(my_scenariosV2) ){
+        #xyz=1
+        for (iii in 0:10) {
+          ### Selects the scenario
+          icol <- which(colnames(data_numeric) %in% my_scenariosV2[[xyz]] )
+          ### name of a model
+          name <- paste(names(my_scenariosV2)[xyz], iii/10, "repeat",repeats,"p",subset_prob[r2], sep="_")
+          ### makes a model
+          my_model.fit[[name]] <- cv.glmnet(x=as.matrix(data_numeric[-ix,icol]), y=truth_survival_train, family="binomial", alpha=iii/10 )
+          ###
+          ### prediction scores into dataframe
+          score_data[[name]] <- data.frame(link=predict(my_model.fit[[name]],s=my_model.fit[[name]]$lambda.min,newx=as.matrix(data_numeric[ix,icol]), type="link")[,1],  
+                                           response=predict(my_model.fit[[name]],s=my_model.fit[[name]]$lambda.min,newx=as.matrix(data_numeric[ix,icol]), type="response")[,1], 
+                                           class=predict(my_model.fit[[name]],s=my_model.fit[[name]]$lambda.min,newx=as.matrix(data_numeric[ix,icol]), type="class")[,1],
+                                           survival=as.factor(truth_survival_test) )
+          ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          ### Alternative Figure to compare prediction scores
+          ### my_ggplots[[name]] <- score_data[[name]] %>% ggplot(aes(x=link, y=response, col=survival)) + scale_color_manual(values=c("black", "red")) + geom_point() + geom_rug() + theme_bw() + ggtitle("Scoring")
+          ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+          ### prediction for ROC
+          pred <- prediction( predictions=as.numeric(as.character(score_data[[name]]$response)), labels=as.numeric(as.character(score_data[[name]]$survival)) )
+          # TPR/FPR Predictions
+          perf <- performance(pred,"tpr","fpr")
+          my_rocs[[name]] <- perf
+          ### temporal data frame to pre-store results in the loop and add them to dataframe later.
+          temp <- data.frame(alpha= iii/10, auc=performance(pred, measure = "auc")@y.values[[1]], model=name, prob=subset_prob[r2], scenario=names(my_scenariosV2)[xyz])
+          ### concatenate with results
+          results_survival_cv <- rbind(results_survival_cv, temp)
+          ### store coefficients
+          my_coeficients[[name]] <- cbind( coef(my_model.fit[[name]], s = "lambda.min") , coef(my_model.fit[[name]], s = "lambda.1se") )
+          ### store names of lambda
+          colnames(my_coeficients[[name]]) <- c("lambda.min","lambda.1se")
+        } } } } }
+###
+
+my_rocs_survival <- my_rocs
+my_coef_survival <- my_coeficients
+my_score_survival <- score_data
+my_models_survival <- my_model.fit
 
 
+head(results_survival_cv)
+summary(results_survival_cv$auc[results_survival_cv$scenario %in% "O2sat"])
+summary(results_survival_cv$auc[results_survival_cv$scenario %in% "demographics"])
+results_survival_cv$auc[results_survival_cv$auc < 0.5] <- 0.5
+
+write.table(file="results_survival_demo_and_o2.csv",results_survival_cv)
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
 
 
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+### load("covid19_glmnet_models_diane.RData")
 ### save.image("covid19_glmnet_models_diane.RData")
 ### +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ### The end
